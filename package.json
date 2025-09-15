@@ -10,6 +10,7 @@
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.57.4",
+    "framer-motion": "^12.23.12",
     "nanoid": "^5.1.5",
     "next": "15.5.3",
     "open-graph-scraper": "^6.10.0",
