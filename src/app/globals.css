@@ -103,6 +103,7 @@ aside .thumb { width: 100%; height: 100%; object-fit: cover; display: block; }
 button { transition: transform 140ms cubic-bezier(.2,.9,.2,1), box-shadow 140ms ease, opacity 140ms ease; will-change: transform; -webkit-tap-highlight-color: transparent; }
 button:hover { transform: translateY(-3px); }
 button:active { transform: translateY(-1px); }
+button:focus { outline: 3px solid rgba(99,102,241,0.12); outline-offset: 2px; border-radius: 8px; }
 
 /* animated gradient keyframes */
 @keyframes gradientMove {
@@ -111,11 +112,16 @@ button:active { transform: translateY(-1px); }
   100% { background-position: 0% 50%; }
 }
 
-/* gradient background for gradient buttons: stretched so motion looks smooth */
-.bg-gradient-animated {
-  background: linear-gradient(90deg, rgba(255,99,132,0.95), rgba(107,70,255,0.95), rgba(8,214,185,0.95));
+/* animation helper used by buttons in JSX */
+.animate-gradientMove {
   background-size: 200% 200%;
   animation: gradientMove 6s ease infinite;
+}
+
+/* gradient background for gradient buttons: stretched so motion looks smooth
+   use this as a background layer (z-index beneath text) */
+.bg-gradient-animated {
+  background: linear-gradient(90deg, rgba(255,99,132,0.95), rgba(107,70,255,0.95), rgba(8,214,185,0.95));
   filter: saturate(1.05);
 }
 
@@ -128,6 +134,19 @@ button:active { transform: translateY(-1px); }
 /* utility classes for button look (used by GradientButton component) */
 .group { position: relative; display: inline-flex; align-items: center; justify-content: center; }
 .gradient-btn { position: relative; overflow: hidden; border-radius: 12px; }
+
+/* small "faint" button helper */
+.btn-faint {
+  background: rgba(255,255,255,0.04);
+  border-radius: 10px;
+  padding: 6px 10px;
+  font-weight: 600;
+  color: #fff; /* <-- force white text */
+}
+.app-wrapper.light .btn-faint {
+  color: #0b1220; /* dark text in light mode */
+}
+
 
 /* card hover elevation */
 .card-elevate { transition: transform 180ms cubic-bezier(.2,.9,.2,1), box-shadow 180ms ease; }
@@ -143,3 +162,23 @@ button:active { transform: translateY(-1px); }
 @media (prefers-reduced-motion: reduce) {
   * { animation-duration: 0.001ms !important; animation-iteration-count: 1 !important; transition-duration: 0.001ms !important; scroll-behavior: auto !important; }
 }
+
+/* --- ADDITIONS: prevent recent thumbnails or action buttons from growing and keep compact baseline --- */
+/* fallback explicit min-width handler for our class usage (some build setups might strip bracket classes)
+   The selector below targets elements that accidentally end up with a literal class name "min-w-[64px]".
+   Note: the square bracket characters are escaped to be valid CSS.
+*/
+.recent-actions .min-w-\[64px\] { min-width: 64px; }
+
+/* Slight spacing for the link rows inside the preview card */
+.link-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.link-left { min-width: 0; padding-right: 12px; }
+.link-anchor { color: inherit; text-decoration: none; display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* tiny adjustments for preview buttons to match visual weight */
+.link-actions button { white-space: nowrap; }
+
+/* ensure anchors inside recent items don't overflow their column */
+aside a { color: inherit; text-decoration: none; }
+
+/* End of file */

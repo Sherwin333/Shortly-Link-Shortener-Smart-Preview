@@ -1,3 +1,4 @@
+// app/page.tsx
 "use client";
 
 import React, { useEffect, useRef, useState } from "react";
@@ -43,7 +44,7 @@ const IconMoon = (props: any) => (
   </svg>
 );
 
-/* ---------- helpers (normalize + upsert) ---------- */
+/* ---------- helpers ---------- */
 function normalizeUrl(u: string) {
   try {
     const url = new URL(u.trim());
@@ -96,67 +97,65 @@ const THEMES: Record<string, any> = {
   },
 };
 
-/* ---------- Cursor reactive background component ---------- */
-/* CursorBackground — place in app/page.tsx (replace previous) */
-function CursorBackground({
-  enabled = true,
-  colorFrom = "rgba(107,70,255,0.16)",
-  colorTo = "rgba(2,6,23,1)",
-}: {
-  enabled?: boolean;
-  colorFrom?: string;
-  colorTo?: string;
-}) {
+/* ---------- Cursor Background (theme-aware + mobile-safe) ---------- */
+function CursorBackground({ themeObj, isLight }: { themeObj: any; isLight: boolean }) {
   const [pos, setPos] = useState({ x: 50, y: 50 });
+  const [enabled, setEnabled] = useState(true);
 
   useEffect(() => {
-    if (!enabled) return;
+    if (typeof window === "undefined") return;
+    if (window.matchMedia("(pointer: coarse)").matches) {
+      setEnabled(false);
+      return;
+    }
     const handleMove = (e: MouseEvent) => {
       const x = (e.clientX / window.innerWidth) * 100;
       const y = (e.clientY / window.innerHeight) * 100;
       setPos({ x, y });
     };
-    // passive for perf
     window.addEventListener("mousemove", handleMove, { passive: true });
     return () => window.removeEventListener("mousemove", handleMove);
-  }, [enabled]);
+  }, []);
 
-  const style: React.CSSProperties = {
-    position: "fixed",
-    inset: 0,
-    zIndex: -58,                // <- between -60 (bg) and -55 (blobs)
-    pointerEvents: "none",
-    transition: "background 80ms linear",
-    // layered radial + subtle darker overlay to blend with theme
-    background: `radial-gradient(circle at ${pos.x}% ${pos.y}%, ${colorFrom} 0%, transparent 18%), ${colorTo}`,
-    mixBlendMode: "screen",
-    opacity: 0.98,
-  };
+  if (!enabled) return null;
 
-  return <div style={style} aria-hidden />;
+  const colorFrom = isLight ? "rgba(107,70,255,0.12)" : themeObj.accentFrom + "44";
+  const colorTo = "rgba(6,11,23,1)";
+
+  return (
+    <div
+      style={{
+        position: "fixed",
+        inset: 0,
+        zIndex: -58,
+        pointerEvents: "none",
+        background: `radial-gradient(circle at ${pos.x}% ${pos.y}%, ${colorFrom} 0%, transparent 20%), ${colorTo}`,
+        transition: "background 100ms linear",
+        mixBlendMode: "screen",
+      }}
+      aria-hidden
+    />
+  );
 }
 
-
-/* ---------- GradientButton (reusable) ---------- */
-function GradientButton({ children, onClick, className = "" }: { children: React.ReactNode; onClick?: () => void; className?: string }) {
+/* ---------- Gradient Button (small inline component) ---------- */
+function GradientButton({ children, onClick, btnStyle = {} as React.CSSProperties }: { children: React.ReactNode; onClick?: () => void; btnStyle?: React.CSSProperties }) {
   return (
     <motion.button
       onClick={onClick}
       whileHover={{ scale: 1.03 }}
       whileTap={{ scale: 0.98 }}
-      className={`relative overflow-hidden rounded-2xl font-semibold text-black px-5 py-3 shadow-md group ${className}`}
-      style={{ WebkitTapHighlightColor: "transparent" }}
+      className="relative overflow-hidden rounded-xl font-semibold text-black px-5 py-3 shadow-md"
+      style={{ WebkitTapHighlightColor: "transparent", ...btnStyle }}
     >
-      {/* animated gradient background (stretched) */}
-      <span className="absolute inset-0 bg-gradient-animated -z-10" aria-hidden />
-      {/* glow */}
-      <span className="absolute inset-0 blur-xl opacity-30 -z-20 gradient-glow" aria-hidden />
+      <span className="absolute inset-0 -z-10 bg-gradient-animated" aria-hidden />
+      <span className="absolute inset-0 -z-20 gradient-glow" aria-hidden />
       <span className="relative z-10">{children}</span>
     </motion.button>
   );
 }
 
-/* ---------- main component (UI polished + interactive bg + gradient button) ---------- */
+/* ---------- main component ---------- */
 export default function Page() {
   // core states
   const [url, setUrl] = useState("");
@@ -376,6 +375,7 @@ export default function Page() {
     <>
       {/* dynamic background and animated blobs */}
       <div style={{ background: themeObj.bgStyle, minHeight: "100vh", position: "fixed", inset: 0, zIndex: -60 }} />
+      <CursorBackground themeObj={themeObj} isLight={isLight} />
       <div style={{ position: "fixed", inset: 0, zIndex: -55, pointerEvents: "none" }}>
         <motion.div
           animate={{ x: [0, -30, 30, 0], y: [0, -20, 20, 0] }}
@@ -389,67 +389,41 @@ export default function Page() {
         />
       </div>
 
-      {/* cursor-reactive subtle background */}
-      <CursorBackground enabled={true} colorFrom="rgba(107,70,255,0.16)" colorTo="rgba(2,6,23,1)" />
-
       <div className={isLight ? "app-wrapper light" : "app-wrapper dark"}>
         <main className="min-h-screen py-12 px-6">
           <div className="center-max">
-
-            {/* top product header (centered) */}
+            {/* header */}
             <div className="mb-8 text-center max-w-3xl mx-auto">
-              <h1 className="text-4xl md:text-5xl font-extrabold mb-3" style={titleStyle}>Link Preview & Shortener</h1>
+              <h1 className="text-4xl md:text-5xl font-extrabold mb-3" style={titleStyle}>
+                Link Preview & Shortener
+              </h1>
               <p className="text-neutral-400">Paste a URL and instantly get a compact short link + rich preview card. Fast, private, and simple.</p>
             </div>
 
-            {/* main control (centered big input) */}
+            {/* Input */}
             <div className="mb-8">
-              <div className="max-w-3xl mx-auto">
-                <div className="flex items-center gap-3">
-                  <div className="relative flex-1">
-                    <div className="input-emboss absolute left-2 top-1/2 -translate-y-1/2">
-                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="opacity-60">
-                        <path d="M21 21l-4.35-4.35" />
-                        <circle cx="11" cy="11" r="6" />
-                      </svg>
-                    </div>
-                    <input
-                      aria-label="URL"
-                      ref={inputRef}
-                      value={url}
-                      onChange={(e) => setUrl(e.target.value)}
-                      placeholder="Paste a URL (https://example.com)"
-                      className="w-full pl-10 pr-4 py-4 rounded-2xl shadow-lg bg-neutral-900/50 border border-neutral-800 focus:outline-none focus:ring-2 focus:ring-offset-0 focus:ring-[#60f1d6]"
-                      onKeyDown={(e) => { if (e.key === "Enter") createShort(); }}
-                    />
-                  </div>
-
-                  <GradientButton onClick={createShort} className="ml-2" >
-                    {loading ? "Creating..." : "Create"}
-                  </GradientButton>
-                </div>
-
-                {err && <div className="mt-3 text-sm text-red-400 text-center">{err}</div>}
-
-                {/* created short link quick bar */}
-                {shortLink && (
-                  <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="mt-4 p-3 rounded-lg bg-neutral-900/30 border border-neutral-800 flex items-center justify-between gap-4">
-                    <div className="text-sm text-neutral-300 truncate break-all">
-                      Short link: <a href={shortLink} className="text-[#9b67ff] underline" target="_blank" rel="noreferrer">{shortLink}</a>
-                    </div>
-
-                    <div className="flex items-center gap-2">
-                      <button onClick={() => copyText(shortLink)} className="px-3 py-1 rounded-md bg-white/6 flex items-center gap-2"><IconCopy className="w-4 h-4" /> Copy</button>
-                      <button onClick={() => window.open(shortLink, "_blank")} className="px-3 py-1 rounded-md bg-white/6 flex items-center gap-2"><IconOpen className="w-4 h-4" /> Open</button>
-                      <button onClick={shareLink} className="px-3 py-1 rounded-md bg-white/6 flex items-center gap-2"><IconShare className="w-4 h-4" /> Share</button>
-                    </div>
-                  </motion.div>
-                )}
+              <div className="max-w-3xl mx-auto flex items-center gap-3">
+                <input
+                  aria-label="URL"
+                  ref={inputRef}
+                  value={url}
+                  onChange={(e) => setUrl(e.target.value)}
+                  placeholder="Paste a URL (https://example.com)"
+                  className="flex-1 px-4 py-3 rounded-xl bg-neutral-900/40 border border-neutral-800 focus:ring-2 focus:ring-[#60f1d6] outline-none"
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") createShort();
+                  }}
+                />
+                <GradientButton btnStyle={{ background: `linear-gradient(90deg, ${themeObj.accentFrom}, ${themeObj.accentTo})` }} onClick={createShort}>
+                  {loading ? "Creating..." : "Create"}
+                </GradientButton>
               </div>
+
+              {err && <div className="mt-3 text-sm text-red-400 text-center">{err}</div>}
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-              {/* left: preview area (larger) */}
+              {/* preview area */}
               <section className="lg:col-span-2 glass p-6 rounded-2xl border border-white/5 shadow-lg min-h-[220px]">
                 {loading && <PreviewSkeleton />}
 
@@ -460,24 +434,119 @@ export default function Page() {
                 )}
 
                 {preview && !loading && (
-                  <motion.article initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="mt-2 rounded-lg overflow-hidden border border-neutral-800 bg-gradient-to-br from-black/40 to-black/20">
+                  <motion.article
+                    initial={{ opacity: 0, y: 8 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="mt-2 rounded-lg overflow-hidden border border-neutral-800 bg-gradient-to-br from-black/40 to-black/20"
+                  >
                     <div className="grid grid-cols-1 md:grid-cols-3">
                       <div className="md:col-span-1 p-4 flex items-center justify-center bg-neutral-900/40">
                         {preview.image ? (
-                          <img src={preview.image} alt={preview.title || "preview"} className="object-cover rounded-md shadow-sm w-full h-48" onError={(e)=>{(e.target as HTMLImageElement).style.display='none'}} />
+                          <img
+                            src={preview.image}
+                            alt={preview.title || "preview"}
+                            className="rounded-md shadow-sm w-full max-h-[220px] object-cover"
+                            style={{ width: "100%", height: "auto" }}
+                            onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
+                          />
                         ) : (
                           <div className="text-neutral-500 p-6">No image</div>
                         )}
                       </div>
 
-                      <div className="md:col-span-2 p-6">
+                      <div className="md:col-span-2 p-6 flex flex-col">
                         <h2 className="text-lg md:text-xl font-semibold text-[#dbeef7] truncate">{preview.title || "No title"}</h2>
                         <p className="text-neutral-300 mt-2 line-clamp-3">{preview.description || "No description available."}</p>
 
-                        <div className="mt-4 flex flex-wrap gap-3">
-                          <button onClick={() => window.open(shortLink ?? "#", "_blank")} className="rounded-md px-3 py-2 text-sm" style={{ background: `linear-gradient(90deg, ${themeObj.accentFrom}, ${themeObj.accentTo})`, color: "#000" }}>Open</button>
-                          <button onClick={() => copyText(shortLink)} className="rounded-md px-3 py-2 text-sm bg-white/8">Copy short</button>
-                          <button onClick={() => copyText(preview.original)} className="rounded-md px-3 py-2 text-sm bg-white/8">Copy original</button>
+                        {/* ========== Link rows: show physical/original + short link ========== */}
+                        <div className="mt-4 flex flex-col gap-3">
+                          {/* Original URL row */}
+                          <div className="link-row flex items-center justify-between gap-3">
+                            <div className="link-left min-w-0">
+                              <div className="text-xs text-neutral-400">Original</div>
+                              <a
+                                href={preview.original}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="truncate link-anchor block"
+                                title={preview.original}
+                              >
+                                {preview.original}
+                              </a>
+                            </div>
+
+                            <div className="link-actions flex items-center gap-2">
+                              <button
+                                onClick={() => window.open(preview.original, "_blank")}
+                                className="px-3 py-1 rounded-md text-xs btn-faint"
+                                aria-label="Open original"
+                              >
+                                Open
+                              </button>
+
+                              <button
+                                onClick={() => copyText(preview.original)}
+                                className="px-3 py-1 rounded-md text-xs bg-white/6"
+                                aria-label="Copy original"
+                              >
+                                Copy
+                              </button>
+                            </div>
+                          </div>
+
+                          {/* Short link row */}
+                          <div className="link-row flex items-center justify-between gap-3">
+                            <div className="link-left min-w-0">
+                              <div className="text-xs text-neutral-400">Short link</div>
+                              <a
+                                href={shortLink ?? "#"}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="truncate link-anchor block"
+                                title={shortLink ?? ""}
+                              >
+                                {shortLink ?? "—"}
+                              </a>
+                            </div>
+
+                            <div className="link-actions flex items-center gap-2">
+                              <button
+                                onClick={() => shortLink && window.open(shortLink, "_blank")}
+                                className="px-3 py-1 rounded-md text-xs btn-faint"
+                                aria-label="Open short"
+                                disabled={!shortLink}
+                              >
+                                Open
+                              </button>
+
+                              <button
+                                onClick={() => copyText(shortLink)}
+                                className="px-3 py-1 rounded-md text-xs bg-white/6"
+                                aria-label="Copy short"
+                                disabled={!shortLink}
+                              >
+                                Copy
+                              </button>
+
+                              <button
+                                onClick={() => shareLink()}
+                                className="px-3 py-1 rounded-md text-xs btn-faint"
+                                aria-label="Share"
+                                disabled={!shortLink}
+                              >
+                                Share
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* existing control buttons (kept) */}
+                        <div className="mt-4">
+                          <div className="flex flex-wrap gap-3">
+                            <button onClick={() => window.open(shortLink ?? "#", "_blank")} className="rounded-md px-3 py-2 text-sm" style={{ background: `linear-gradient(90deg, ${themeObj.accentFrom}, ${themeObj.accentTo})`, color: "#000" }}>Open</button>
+                            <button onClick={() => copyText(shortLink)} className="rounded-md px-3 py-2 text-sm bg-white/8">Copy short</button>
+                            <button onClick={() => copyText(preview.original)} className="rounded-md px-3 py-2 text-sm bg-white/8">Copy original</button>
+                          </div>
                         </div>
                       </div>
                     </div>
@@ -485,7 +554,7 @@ export default function Page() {
                 )}
               </section>
 
-              {/* right: recent & management (compact responsive grid) */}
+              {/* recent / management */}
               <aside className="glass p-4 rounded-2xl border border-white/5 shadow-md">
                 <div className="flex items-center justify-between mb-3 gap-3">
                   <h3 className="text-sm text-neutral-300 font-medium">Recent</h3>
@@ -515,11 +584,12 @@ export default function Page() {
                           transition={{ type: "spring", stiffness: 260, damping: 20 }}
                           className="flex items-center gap-3 rounded-lg overflow-hidden border border-neutral-800 bg-neutral-900/40 p-2"
                         >
-                          <div className="w-20 h-14 flex-shrink-0 bg-neutral-800 rounded overflow-hidden">
+                          {/* thumbnail box: fixed size so images can't blow up */}
+                          <div className="recent-thumb flex-shrink-0 rounded overflow-hidden bg-neutral-800">
                             {h.image ? (
                               <img src={h.image} alt={h.title || ""} className="w-full h-full object-cover" />
                             ) : (
-                              <div className="w-full h-full bg-neutral-800" />
+                              <div className="w-full h-full no-image" />
                             )}
                           </div>
 
@@ -529,9 +599,28 @@ export default function Page() {
                             <div className="text-xs text-neutral-500 truncate mt-1">{h.short}</div>
                           </div>
 
-                          <div className="flex flex-col gap-2 ml-2">
-                            <button onClick={() => window.open(h.short, "_blank")} className="px-2 py-1 rounded-md text-xs font-medium bg-gradient-to-r from-cyan-400 to-blue-500 text-black shadow">Open</button>
-                            <button onClick={() => copyText(h.short)} className="px-2 py-1 rounded-md text-xs font-medium bg-white/6">Copy</button>
+                          {/* Actions column: responsive sizes so they don't overflow on small screens */}
+                          <div className="flex flex-col gap-2 ml-2 flex-shrink-0 items-end recent-actions">
+                            <motion.button
+                              whileHover={{ scale: 1.05 }}
+                              whileTap={{ scale: 0.96 }}
+                              onClick={() => window.open(h.short, "_blank")}
+                              className="px-2 py-1 rounded-md text-xs font-semibold text-black bg-gradient-to-r from-cyan-400 via-blue-500 to-purple-500 bg-[length:200%_200%] animate-gradientMove shadow-md min-w-[64px] sm:w-20"
+                              title="Open"
+                            >
+                              Open
+                            </motion.button>
+
+                            <motion.button
+                              whileHover={{ scale: 1.05 }}
+                              whileTap={{ scale: 0.96 }}
+                              onClick={() => copyText(h.short)}
+                              className="px-2 py-1 rounded-md text-xs font-medium bg-white/6 flex items-center justify-center gap-2 min-w-[64px] sm:w-20"
+                              title="Copy"
+                            >
+                              <IconCopy className="w-3 h-3" /> <span className="hidden sm:inline">Copy</span>
+                              <span className="sm:hidden">Cp</span>
+                            </motion.button>
                           </div>
                         </motion.div>
                       ))}
